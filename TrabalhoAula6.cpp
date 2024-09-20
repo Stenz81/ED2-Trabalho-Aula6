@@ -26,6 +26,13 @@ struct busca_p
 
 char vet_bs[MAX_BUSCA_S][50];
 
+struct cabecalho
+{
+    int insere_utilizados = 0;
+    int buscap_utilizados = 0;
+    int buscas_utilizados = 0;
+}header;
+
 // Função para verificar se um arquivo já existe
 int arquivo_existe(const char *nome_arquivo)
 {
@@ -70,9 +77,58 @@ int calcularTamanhoRegistro(const Registro &reg)
     return tamanho;
 }
 
-void insereRegistro (FILE *file, const Registro &reg)
-{
 
+void insereRegistro (const Registro &reg)
+{
+    FILE *file;
+    int tamanho_registro = calcularTamanhoRegistro(reg);
+///////////////////////////////////////////////////////////////////////////////////////////////////
+    file = fopen("listaRegistros.bin", "wb+");
+    // Vai para o para o final do arquivo principal e escreve o registro
+    fseek(file, 0, SEEK_END);
+
+    // Escreve o tamanho do registro
+    fwrite(&tamanho_registro, sizeof(int), 1, file);
+
+    // Escreve o conteúdo do registro
+    fwrite(reg.id_aluno, sizeof(reg.id_aluno), 1, file);
+    fputc('#', file);
+    fwrite(reg.sigla_disciplina, sizeof(reg.sigla_disciplina), 1, file);
+    fputc('#', file);
+
+    // Inserir nome_aluno caracter por caracter até encontrar 0x00
+    for (int i = 0; i < 50; i++)
+    {
+        if (reg.nome_aluno[i] == '\0')
+        {          // Verifica se encontrou o espaço vazio (0x00)
+            break; // Pula para o próximo campo
+        }
+        fputc(reg.nome_aluno[i], file); // Escreve o caractere no arquivo
+    }
+    fputc('#', file);
+    // Inserir nome_disciplina caracter por caracter até encontrar 0x00
+    for (int i = 0; i < 50; i++)
+    {
+        if (reg.nome_disciplina[i] == '\0')
+        {          // Verifica se encontrou o espaço vazio (0x00)
+            break; // Pula para o próximo campo
+        }
+        fputc(reg.nome_disciplina[i], file); // Escreve o caractere no arquivo
+    }
+    fputc('#', file);
+    fwrite(&reg.media, sizeof(float), 1, file);
+    fputc('#', file);
+    fwrite(&reg.frequencia, sizeof(float), 1, file);
+
+    // Atualizar o cabeçalho no arquivo
+    header.insere_utilizados++;
+    fseek(file, 0, SEEK_SET);
+    fwrite(&header, sizeof(struct cabecalho), 1, file);
+    fclose(file);
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //Insere a chave primaria do novo registro no arquivo 
 }
 
 int main ()
@@ -149,6 +205,33 @@ int main ()
     {
         printf("Nome Aluno: %s\n", vet_bs[i]);
     }
+
+    if (arquivo_existe("listaRegistros.bin"))//se o arquivo já existe, abre o arquivo
+    {
+        file = fopen("listaRegistros.bin", "rb+");
+        if (file == NULL)
+        {
+            printf("Nao foi possivel abrir o arquivo.\n");
+            return 1;
+        }
+    }
+    else //se nao existe, cria e inicia o cabeçalho
+    {
+        file = fopen("listaRegistros.bin", "wb+");
+        if (file == NULL)
+        {
+            printf("Nao foi possivel abrir o arquivo.\n");
+            return 1;
+        }
+        header.insere_utilizados = 0;
+        header.buscap_utilizados = 0;
+        header.buscas_utilizados = 0;
+
+        fseek(file, 0, SEEK_SET);
+        fwrite(&header, sizeof(struct cabecalho), 1, file);
+    }
+
+    //
 
 
 
