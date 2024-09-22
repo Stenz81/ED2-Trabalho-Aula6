@@ -153,7 +153,7 @@ void insereRegistro (FILE *file, FILE *file_bp, FILE *file_bs_nomes, FILE *file_
     int novo_offset_inicio_lista;
     bool nome_encontrado = false;
 
-    fseek(file_bs_nomes, 0, SEEK_END);        
+    fseek(file_bs_nomes, sizeof(cabecalho_busca), SEEK_SET);        
     while(fread(&nome_atual, sizeof(nome_atual), 1, file_bs_nomes)) //Le o nome do aluno no arquivo
     {            
         if(strcmp(nome_atual, reg.nome_aluno) == 0) //Verifica se o nome do registro corresponde ao do arquivo
@@ -170,6 +170,7 @@ void insereRegistro (FILE *file, FILE *file_bp, FILE *file_bs_nomes, FILE *file_
             fwrite(&novo_offset_inicio_lista, sizeof(int), 1, file_bs_nomes); //Escreve o novo offset de inicio da lista endadeada
 
             nome_encontrado = true;
+            break;
         }else
         {
             //Caso os nomes sejam diferentes, pula o offset da lista e lê o próximo nome 
@@ -205,6 +206,8 @@ void insereRegistro (FILE *file, FILE *file_bp, FILE *file_bs_nomes, FILE *file_
     fwrite(&hdr_bs_chaves, sizeof(struct cabecalho_busca), 1, file_bs_chaves); //Atualiza o header
    
 }
+
+
 
 int main ()
 {
@@ -382,6 +385,9 @@ int main ()
         fseek(file_bs_chaves, 0, SEEK_SET);
         fwrite(&hdr_bs_chaves, sizeof(struct cabecalho_busca), 1, file_bs_chaves);
     }
+
+    insereRegistro(file, file_bp, file_bs_nomes, file_bs_chaves, insere[0]);
+    insereRegistro(file, file_bp, file_bs_nomes, file_bs_chaves, insere[1]);
 
     fclose(file);
     fclose(file_bp);
