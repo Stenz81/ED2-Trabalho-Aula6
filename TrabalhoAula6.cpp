@@ -104,39 +104,7 @@ int compararChaves(const struct busca_p2 *registro, const struct busca_p *busca)
     return cmp;
 }
 
-// Função de busca primária
-void buscarPrimaria(struct busca_p chave, struct busca_p2 indices_p[], FILE *fileDados) 
-{
-    struct cabecalho header;
-    fread(&header, sizeof(struct cabecalho), 1, fileDados);
-    struct busca_p2 registroIndice;
-    bool regisro_encontrado = false;
-
-    for (int i = 0; i < header.insere_utilizados; i++) 
-    {
-
-        // Compara as chaves
-        if (compararChaves(&indices_p[i], &chave) == 0) {
-            // Se encontrou, vai para o offset no arquivo de dados
-            fseek(fileDados, indices_p[i].offset, SEEK_SET);
-
-            // Lê o registro no arquivo de dados (assumindo que a estrutura no arquivo de dados é conhecida)
-            char buffer[100]; // Buffer para armazenar os dados lidos
-            fread(buffer, sizeof(char), 100, fileDados);  // Lê o registro completo
-            printf("Registro encontrado para ID Aluno: %s, Disciplina: %s\n", chave.id_aluno, chave.sigla_disc);
-            printf("Dados: %s\n", buffer);
-            regisro_encontrado = true;
-            break;
-        }
-        
-        if (regisro_encontrado == false) 
-        {
-            printf("Registro não encontrado para ID Aluno: %s, Disciplina: %s\n", chave.id_aluno, chave.sigla_disc);
-        }
-    }
-}
-
-void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, struct busca_s_nomes *indices_s_nomes, FILE *file_bs_nomes, FILE *file_bs_chaves, const Registro &reg)
+void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, struct busca_s_nomes *indices_s_nomes, FILE *file_bs_nomes, char indice_busca_s_chaves[],FILE *file_bs_chaves, const Registro &reg)
 {
     int tamanho_registro = calcularTamanhoRegistro(reg);
     int inicio_registro;
@@ -208,11 +176,12 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     int novo_offset_inicio_lista;
     bool nome_encontrado = false;
 
-    for (int i = 0; i < header.quantidade_nomes; i++) // Passa por todos os nomes já presentes no 
+    for (int i = 0; i < header.quantidade_nomes; i++) // Passa por todos os nomes já presentes no array
     {
         if(strcmp(indices_s_nomes[i].nome_aluno, reg.nome_aluno) == 0) //Verifica se o nome do registro corresponde ao do arquivo
         { 
             //Caso os nomes sejam iguais:
+            printf("Nome encontrado. Atualizando...\n");
 
             // Após o cabeçalho, cada struct 'busca_p2' ocupa 12 bytes (4 bytes + 4 bytes + 4 bytes)
             novo_offset_inicio_lista = sizeof(cabecalho_busca) + (header.insere_utilizados * sizeof(busca_p2));
@@ -235,7 +204,7 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     }
     if(nome_encontrado == false)
     {
-        strcpy(indices_s_nomes[header.quantidade_nomes + 1].nome_aluno, reg.nome_aluno);     
+        strcpy(indices_s_nomes[header.quantidade_nomes].nome_aluno, reg.nome_aluno);     
 
         // Após o cabeçalho, cada struct 'busca_p2' ocupa 12 bytes (4 bytes + 4 bytes + 4 bytes)
         novo_offset_inicio_lista = sizeof(cabecalho_busca) + (header.insere_utilizados * sizeof(busca_p2));
@@ -251,7 +220,9 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
         memcpy(&indice_busca_s_chaves[novo_offset_inicio_lista + 8], &offset_inicio_lista, sizeof(offset_inicio_lista));
 
         //Define o offset para o nome do aluno como sendo o inicio da lista criada
-        indices_s_nomes[header.quantidade_nomes + 1].offset = novo_offset_inicio_lista;
+        indices_s_nomes[header.quantidade_nomes].offset = novo_offset_inicio_lista;
+
+        printf("Novo nome adicionado.\n");
 
         //Atualiza a quantidade de nomes diferentes
         header.quantidade_nomes++;
@@ -274,7 +245,142 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     fseek(file, 0, SEEK_SET);
     fwrite(&header, sizeof(struct cabecalho), 1, file);
 
+    for (int i = 0; i < header.quantidade_nomes; i++)
+    {
+        printf("Nome %d: %s\n", i, &indices_s_nomes[i]);
+    }
+    printf("===========================================================================\n");
+    for(int i = 0; i < header.insere_utilizados; i++){
+        printf("Chave %d: ID %s, Sigla %s\n", i, &indices_p[i].id_aluno, &indices_p[i].sigla_disc);
+    }
+
 }
+
+// Função de busca primária
+void buscarPrimaria(struct busca_p chave, struct busca_p2 indices_p[], FILE *fileDados) 
+{
+    struct cabecalho header;
+    fread(&header, sizeof(struct cabecalho), 1, fileDados);
+    bool registro_encontrado = false;
+
+    for (int i = 0; i < header.insere_utilizados; i++) 
+    {      
+        // Compara as chaves
+        if (compararChaves(&indices_p[i], &chave) == 0) {
+            // Se encontrou, vai para o offset no arquivo de dados
+            fseek(fileDados, indices_p[i].offset, SEEK_SET);
+
+            // Lê o registro no arquivo de dados (assumindo que a estrutura no arquivo de dados é conhecida)
+            char buffer[100]; // Buffer para armazenar os dados lidos
+            fread(buffer, sizeof(char), 100, fileDados);  // Lê o registro completo
+            printf("Registro encontrado para ID Aluno: %s, Disciplina: %s\n", chave.id_aluno, chave.sigla_disc);
+            printf("Dados: %s\n", &buffer);
+            registro_encontrado = true;
+            break;
+        }
+
+    }
+    
+    if (registro_encontrado == false) 
+    {
+        printf("Registro nao encontrado para ID Aluno: %s, Disciplina: %s\n", chave.id_aluno, chave.sigla_disc);
+    }
+    fseek(fileDados, 0, SEEK_SET);
+}
+
+void buscarSecundaria(char nome_aluno[], struct busca_s_nomes indices_s_nomes[], char indice_busca_s_chaves[], FILE *fileDados)
+{
+    //faz a leitura do header para verificar a quantidade de nomes
+    struct cabecalho header;
+    fread(&header, sizeof(struct cabecalho), 1, fileDados);
+    struct busca_p prox_buscap;
+    int offset;
+    bool nome_encontrado;
+    //int posicao_inicial;
+    //printf("Nome a ser buscado: %s\n", nome_aluno);
+
+    for(int i = 0; i < header.quantidade_nomes; i++)
+    {
+        
+        if(strcmp(indices_s_nomes[i].nome_aluno, nome_aluno) == 0)
+        {
+            int posicao_inicial = indices_s_nomes[i].offset;
+            while (posicao_inicial != -1){
+                memcpy(prox_buscap.id_aluno, &indice_busca_s_chaves[posicao_inicial], 4);
+                memcpy(prox_buscap.sigla_disc, &indice_busca_s_chaves[posicao_inicial + 4], 4);
+                memcpy(&offset, &indice_busca_s_chaves[posicao_inicial + 8], 4);
+
+                //printf("Chave %d: ID %s, Sigla %s\n", i, &prox_buscap.id_aluno, &prox_buscap.sigla_disc);
+
+                buscarPrimaria(prox_buscap, indices_p, fileDados);
+                posicao_inicial = offset;
+            }
+            nome_encontrado = true;
+        }
+    }
+    if(nome_encontrado == false)
+    {
+        printf("O nome %s não foi encontrado.\n", nome_aluno);
+    }
+}
+
+//Escreve o vetor indices_p no arquivo de chaves primárias
+void escreveIndicesP(struct busca_p2 indices_p[], struct cabecalho header, FILE *file_bp)
+{
+    //Atualiza o cabecalho para indicar que ele está atualizado
+    struct cabecalho_busca hdr_bp;
+    hdr_bp.registro_alterado = 0;
+    fseek(file_bp, 0, SEEK_SET);
+    fwrite(&hdr_bp, sizeof(struct cabecalho_busca), 1, file_bp);
+
+    for (int i = 0; i < header.insere_utilizados; i++)
+    {
+        fwrite(&indices_p[i].id_aluno, sizeof(indices_p[i].id_aluno), 1, file_bp);
+        fwrite(&indices_p[i].sigla_disc, sizeof(indices_p[i].sigla_disc), 1, file_bp);
+        fwrite(&indices_p[i].offset, sizeof(indices_p[i].offset), 1, file_bp);
+    }
+}
+
+//Le o vetor indices_p a partir do arquivo de chaves primárias
+
+
+//Escreve o vetor indices_s_nomes no arquivo de nomes 
+void escreveNomesIndicesS(struct busca_s_nomes indices_s_nomes[], struct cabecalho header, FILE *file_bs_nomes)
+{
+    //Atualiza o cabecalho para indicar que ele está atualizado
+    struct cabecalho_busca hdr_bs_nomes;
+    hdr_bp.registro_alterado = 0;
+    fseek(file_bs_nomes, 0, SEEK_SET);
+    fwrite(&hdr_bs_nomes, sizeof(struct cabecalho_busca), 1, file_bs_nomes);
+
+    for(int i =0; i < header.quantidade_nomes; i++)
+    {
+        fwrite(&indices_s_nomes[i].nome_aluno, sizeof(indices_s_nomes[i].nome_aluno), 1, file_bs_nomes);
+        fwrite(&indices_s_nomes[i].offset, sizeof(indices_s_nomes[i].offset), 1, file_bs_nomes);
+    }
+}
+
+//Le o vetor indices_s_nomes a partir do arquivo de nomes
+
+
+//Escreve o vetor indices_s_chaves no arquivo de lista invertida de chaves  
+void escreveChavesIndicesS(char indice_busca_s_chaves[], struct cabecalho header, FILE *file_bs_chaves)
+{
+    struct cabecalho_busca hdr_bs_chaves;
+    fseek(file_bs_chaves, 0, SEEK_SET);
+    fwrite(indice_busca_s_chaves, sizeof(struct cabecalho_busca) + (header.insere_utilizados * sizeof(struct busca_p2)), 1, file_bs_chaves);
+    
+    //Atualiza o cabecalho para indicar que ele está atualizado
+    hdr_bs_chaves.registro_alterado = 0;
+    fseek(file_bs_chaves, 0, SEEK_SET);
+    fwrite(&hdr_bs_chaves, sizeof(struct cabecalho_busca), 1, file_bs_chaves);
+}
+
+//Le o vetor indices_s_chaves a partir do arquivo de lista invertida de chaves  
+
+
+//Reconstroi os arquivos e recria os vetores a partir do arquivo principal
+
 
 /*void insereRegistro (FILE *file, FILE *file_bp, FILE *file_bs_nomes, FILE *file_bs_chaves, const Registro &reg)
 {
@@ -578,8 +684,28 @@ int main ()
         fwrite(&hdr_bs_chaves, sizeof(struct cabecalho_busca), 1, file_bs_chaves);
     }
 
-    //insereRegistro(file, file_bp, file_bs_nomes, file_bs_chaves, insere[0]);
-    //insereRegistro(file, file_bp, file_bs_nomes, file_bs_chaves, insere[1]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[0]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[1]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[2]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[3]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[4]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[5]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[6]);
+    insereRegistro(file, indices_p, file_bp, indices_s_nomes, file_bs_nomes, indice_busca_s_chaves, file_bs_chaves, insere[7]);
+
+    buscarPrimaria(vet_bp[0], indices_p, file);
+    buscarPrimaria(vet_bp[1], indices_p, file);
+
+    buscarSecundaria(vet_bs[0], indices_s_nomes, indice_busca_s_chaves, file);
+    buscarSecundaria(vet_bs[4], indices_s_nomes, indice_busca_s_chaves, file);
+
+    fseek(file, 0, SEEK_SET);
+    fread(&header, sizeof(struct cabecalho), 1, file);
+
+    escreveIndicesP(indices_p, header, file_bp);
+    escreveNomesIndicesS(indices_s_nomes, header, file_bs_nomes);
+    escreveChavesIndicesS(indice_busca_s_chaves, header, file_bs_chaves);
+
 
     fclose(file);
     fclose(file_bp);
