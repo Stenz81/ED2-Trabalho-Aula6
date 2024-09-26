@@ -342,6 +342,19 @@ void escreveIndicesP(struct busca_p2 indices_p[], struct cabecalho header, FILE 
 }
 
 //Le o vetor indices_p a partir do arquivo de chaves primárias
+void leIndicesP(struct busca_p2 indices_p[], FILE *file_bp)
+{
+    int i = 0;
+    struct busca_p2 chave_atual;
+    fseek(file_bp, sizeof(struct cabecalho_busca), SEEK_SET);
+    while(fread(&chave_atual, sizeof(struct busca_p2), 1, file_bp))
+    {
+        strcpy(indices_p[i].id_aluno, chave_atual.id_aluno);
+        strcpy(indices_p[i].sigla_disc, chave_atual.sigla_disc);
+        indices_p[i].offset = chave_atual.offset;
+        i++;
+    }
+}
 
 
 //Escreve o vetor indices_s_nomes no arquivo de nomes 
@@ -349,7 +362,7 @@ void escreveNomesIndicesS(struct busca_s_nomes indices_s_nomes[], struct cabecal
 {
     //Atualiza o cabecalho para indicar que ele está atualizado
     struct cabecalho_busca hdr_bs_nomes;
-    hdr_bp.registro_alterado = 0;
+    hdr_bs_nomes.registro_alterado = 0;
     fseek(file_bs_nomes, 0, SEEK_SET);
     fwrite(&hdr_bs_nomes, sizeof(struct cabecalho_busca), 1, file_bs_nomes);
 
@@ -361,7 +374,19 @@ void escreveNomesIndicesS(struct busca_s_nomes indices_s_nomes[], struct cabecal
 }
 
 //Le o vetor indices_s_nomes a partir do arquivo de nomes
+void leNomesIndicesS(struct busca_s_nomes indices_s_nomes[], FILE *file_bs_nomes)
+{
+    int i = 0;
+    struct busca_s_nomes nome_atual;
+    fseek(file_bs_nomes, sizeof(struct cabecalho_busca), SEEK_SET);
+    while(fread(&nome_atual, sizeof(struct busca_s_nomes), 1, file_bs_nomes))
+    {
+        strcpy(indices_s_nomes[i].nome_aluno, nome_atual.nome_aluno);
+        indices_s_nomes[i].offset = nome_atual.offset;
+        i++;
+    }
 
+}
 
 //Escreve o vetor indices_s_chaves no arquivo de lista invertida de chaves  
 void escreveChavesIndicesS(char indice_busca_s_chaves[], struct cabecalho header, FILE *file_bs_chaves)
@@ -377,7 +402,15 @@ void escreveChavesIndicesS(char indice_busca_s_chaves[], struct cabecalho header
 }
 
 //Le o vetor indices_s_chaves a partir do arquivo de lista invertida de chaves  
+void leChavesIndicesS(char indice_busca_s_chaves[], FILE *file_bs_chaves)
+{
+    int tamanho;
+    fseek(file_bs_chaves, 0, SEEK_END);
+    tamanho = ftell(file_bs_chaves);
 
+    fread(&indice_busca_s_chaves, tamanho, 1, file_bs_chaves);
+
+}
 
 //Reconstroi os arquivos e recria os vetores a partir do arquivo principal
 
