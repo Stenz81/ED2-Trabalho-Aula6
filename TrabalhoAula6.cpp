@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stddef.h>
 
-#define MAX_INSERE 8
-#define MAX_BUSCA_P 4
-#define MAX_BUSCA_S 5
+#define MAX_INSERE 80
+#define MAX_BUSCA_P 40
+#define MAX_BUSCA_S 50
 
 struct Registro
 {
@@ -102,6 +102,75 @@ int compararChaves(const struct busca_p2 *registro, const struct busca_p *busca)
         cmp = strncmp(registro->sigla_disc, busca->sigla_disc, 4);
     }
     return cmp;
+}
+
+// Função para ler e imprimir um registro a partir de um offset
+void lerRegistro(FILE *file, int offset) {
+    
+
+    // Posiciona o ponteiro do arquivo no offset fornecido
+    fseek(file, offset, SEEK_SET);
+
+
+    // Lê o tamanho do registro (número inteiro no início)
+    int tamanhoRegistro = 0;
+    fread(&tamanhoRegistro, sizeof(int), 1, file);
+    
+
+    // Lê o id_aluno e o delimitador '#'
+    char id_aluno[4] = {0};
+    fread(id_aluno, sizeof(char), 4, file);
+    fgetc(file);
+    
+    id_aluno[3] = '\0';
+
+    // Lê a sigla_disciplina e o delimitador '#'
+    char sigla_disciplina[4] = {0};
+    fread(sigla_disciplina, sizeof(char), 4, file);
+    fgetc(file);
+    
+    sigla_disciplina[3] = '\0';
+
+    // Lê o nome_aluno até encontrar o delimitador '#'
+    char nome_aluno[50] = {0};
+    int i = 0;
+    char c;
+    while (fread(&c, sizeof(char), 1, file) == 1 && c != '#') {
+        if (i < 50 - 1) {
+            nome_aluno[i++] = c;
+        }
+    }
+    nome_aluno[i] = '\0';
+
+    // Lê o nome_disciplina até encontrar o delimitador '#'
+    char nome_disciplina[50] = {0};
+    i = 0;
+    while (fread(&c, sizeof(char), 1, file) == 1 && c != '#') {
+        if (i < 50 - 1) {
+            nome_disciplina[i++] = c;
+        }
+    }
+    nome_disciplina[i] = '\0';
+
+    // Lê a média e o delimitador '#'
+    float media = 0.0;
+    fread(&media, sizeof(float), 1, file);
+    fgetc(file);
+    
+    // Lê a frequência
+    float frequencia = 0.0;
+    fread(&frequencia, sizeof(float), 1, file);
+
+    // Exibe os dados lidos
+    printf("ID Aluno: %s\n",  id_aluno);
+    printf("Sigla Disciplina: %s\n",  sigla_disciplina);
+    printf("Nome Aluno: %s\n",  nome_aluno);
+    printf("Nome Disciplina: %s\n",  nome_disciplina);
+    printf("Media: %.2f\n",  media);
+    printf("Frequencia: %.2f\n\n",  frequencia);
+    printf("===============================================================\n\n");
+
+    return;
 }
 
 void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, struct busca_s_nomes *indices_s_nomes, FILE *file_bs_nomes, char indice_busca_s_chaves[],FILE *file_bs_chaves, const Registro &reg)
@@ -244,7 +313,7 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     header.insere_utilizados++;
     fseek(file, 0, SEEK_SET);
     fwrite(&header, sizeof(struct cabecalho), 1, file);
-
+/*
     for (int i = 0; i < header.quantidade_nomes; i++)
     {
         printf("Nome %d: %s\n", i, &indices_s_nomes[i]);
@@ -253,7 +322,7 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     for(int i = 0; i < header.insere_utilizados; i++){
         printf("Chave %d: ID %s, Sigla %s\n", i, &indices_p[i].id_aluno, &indices_p[i].sigla_disc);
     }
-
+*/
 }
 
 // Função de busca primária
@@ -267,14 +336,11 @@ void buscarPrimaria(struct busca_p chave, struct busca_p2 indices_p[], FILE *fil
     {      
         // Compara as chaves
         if (compararChaves(&indices_p[i], &chave) == 0) {
-            // Se encontrou, vai para o offset no arquivo de dados
-            fseek(fileDados, indices_p[i].offset, SEEK_SET);
 
-            // Lê o registro no arquivo de dados (assumindo que a estrutura no arquivo de dados é conhecida)
-            char buffer[100]; // Buffer para armazenar os dados lidos
-            fread(buffer, sizeof(char), 100, fileDados);  // Lê o registro completo
+            // Se encontrou, vai para o offset no arquivo de dados
             printf("Registro encontrado para ID Aluno: %s, Disciplina: %s\n", chave.id_aluno, chave.sigla_disc);
-            printf("Dados: %s\n", &buffer);
+            lerRegistro(fileDados, indices_p[i].offset);
+            
             registro_encontrado = true;
             break;
         }
@@ -297,7 +363,7 @@ void buscarSecundaria(char nome_aluno[], struct busca_s_nomes indices_s_nomes[],
     int offset;
     bool nome_encontrado;
     //int posicao_inicial;
-    //printf("Nome a ser buscado: %s\n", nome_aluno);
+    printf("Nome a ser buscado: %s\n\n", nome_aluno);
 
     for(int i = 0; i < header.quantidade_nomes; i++)
     {
@@ -413,6 +479,41 @@ void leChavesIndicesS(char indice_busca_s_chaves[], FILE *file_bs_chaves)
 }
 
 //Reconstroi os arquivos e recria os vetores a partir do arquivo principal
+
+
+void inserirOrdenado(struct busca_p2 indices_p[],  struct busca_p2 novoRegistro, int numRegistros) 
+{    
+    // Encontrar a posição onde o novo registro deve ser inserido
+    int i = numRegistros - 1;
+    while (i >= 0 && (indices_p[i].id_aluno > novoRegistro.id_aluno ||
+           (indices_p[i].id_aluno == novoRegistro.id_aluno && strcmp(indices_p[i].sigla_disc, novoRegistro.sigla_disc) > 0))) {
+        // Deslocar o registro para a direita
+        indices_p[i + 1] = indices_p[i];
+        --i;
+    }
+
+    // Inserir o novo registro na posição correta
+    indices_p[i + 1] = novoRegistro;
+
+    return;
+}
+
+void inserirOrdenadoPorNome(struct busca_s_nomes indices_s_nomes[], struct busca_s_nomes novo_nome, int numRegistros) {
+    
+    // Encontrar a posição onde o novo registro deve ser inserido
+    int i = numRegistros - 1;
+    while (i >= 0 && strcmp(indices_s_nomes[i].nome_aluno, novo_nome.nome_aluno) > 0) {
+        // Deslocar o registro para a direita
+        indices_s_nomes[i + 1] = indices_s_nomes[i];
+        --i;
+    }
+
+    // Inserir o novo registro na posição correta
+    indices_s_nomes[i + 1] = novo_nome;
+
+    return;
+}
+
 
 
 /*void insereRegistro (FILE *file, FILE *file_bp, FILE *file_bs_nomes, FILE *file_bs_chaves, const Registro &reg)
