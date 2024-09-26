@@ -173,6 +173,39 @@ void lerRegistro(FILE *file, int offset) {
     return;
 }
 
+void inserirOrdenado(struct busca_p2 indices_p[],  struct busca_p2 novoRegistro, int numRegistros) 
+{    
+    // Encontrar a posição onde o novo registro deve ser inserido
+    int i = numRegistros - 1;
+    while (i >= 0 && (strcmp(indices_p[i].id_aluno, novoRegistro.id_aluno) > 0 ||
+           (strcmp(indices_p[i].id_aluno, novoRegistro.id_aluno) == 0 && strcmp(indices_p[i].sigla_disc, novoRegistro.sigla_disc) > 0))) {
+        // Deslocar o registro para a direita
+        indices_p[i + 1] = indices_p[i];
+        --i;
+    }
+
+    // Inserir o novo registro na posição correta
+    indices_p[i + 1] = novoRegistro;
+
+    return;
+}
+
+void inserirOrdenadoPorNome(struct busca_s_nomes indices_s_nomes[], struct busca_s_nomes novo_nome, int numRegistros) {
+    
+    // Encontrar a posição onde o novo registro deve ser inserido
+    int i = numRegistros - 1;
+    while (i >= 0 && strcmp(indices_s_nomes[i].nome_aluno, novo_nome.nome_aluno) > 0) {
+        // Deslocar o registro para a direita
+        indices_s_nomes[i + 1] = indices_s_nomes[i];
+        --i;
+    }
+
+    // Inserir o novo registro na posição correta
+    indices_s_nomes[i + 1] = novo_nome;
+
+    return;
+}
+
 void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, struct busca_s_nomes *indices_s_nomes, FILE *file_bs_nomes, char indice_busca_s_chaves[],FILE *file_bs_chaves, const Registro &reg)
 {
     int tamanho_registro = calcularTamanhoRegistro(reg);
@@ -223,9 +256,17 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    strcpy(indices_p[header.insere_utilizados].id_aluno, reg.id_aluno);   // Copia o id_aluno
+    struct busca_p2 nova_chave;
+
+    strcpy(nova_chave.id_aluno, reg.id_aluno);   // Copia o id_aluno
+    strcpy(nova_chave.sigla_disc, reg.sigla_disciplina);  // Copia a sigla_disc
+    nova_chave.offset = inicio_registro;
+
+    inserirOrdenado(indices_p, nova_chave, header.insere_utilizados);
+
+    /*strcpy(indices_p[header.insere_utilizados].id_aluno, reg.id_aluno);   // Copia o id_aluno
     strcpy(indices_p[header.insere_utilizados].sigla_disc, reg.sigla_disciplina);  // Copia a sigla_disc
-    indices_p[header.insere_utilizados].offset = inicio_registro;
+    indices_p[header.insere_utilizados].offset = inicio_registro;*/
 
     //Atualiza o cabeçalho do arquivo de chaves primarias
     struct cabecalho_busca hdr_bp;
@@ -273,7 +314,8 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
     }
     if(nome_encontrado == false)
     {
-        strcpy(indices_s_nomes[header.quantidade_nomes].nome_aluno, reg.nome_aluno);     
+        struct busca_s_nomes novo_nome;
+        strcpy(novo_nome.nome_aluno, reg.nome_aluno);     
 
         // Após o cabeçalho, cada struct 'busca_p2' ocupa 12 bytes (4 bytes + 4 bytes + 4 bytes)
         novo_offset_inicio_lista = sizeof(cabecalho_busca) + (header.insere_utilizados * sizeof(busca_p2));
@@ -289,7 +331,9 @@ void insereRegistro (FILE *file, struct busca_p2 *indices_p, FILE *file_bp, stru
         memcpy(&indice_busca_s_chaves[novo_offset_inicio_lista + 8], &offset_inicio_lista, sizeof(offset_inicio_lista));
 
         //Define o offset para o nome do aluno como sendo o inicio da lista criada
-        indices_s_nomes[header.quantidade_nomes].offset = novo_offset_inicio_lista;
+        novo_nome.offset = novo_offset_inicio_lista;
+
+        inserirOrdenadoPorNome(indices_s_nomes, novo_nome, header.quantidade_nomes);
 
         printf("Novo nome adicionado.\n");
 
@@ -480,39 +524,6 @@ void leChavesIndicesS(char indice_busca_s_chaves[], FILE *file_bs_chaves)
 
 //Reconstroi os arquivos e recria os vetores a partir do arquivo principal
 
-
-void inserirOrdenado(struct busca_p2 indices_p[],  struct busca_p2 novoRegistro, int numRegistros) 
-{    
-    // Encontrar a posição onde o novo registro deve ser inserido
-    int i = numRegistros - 1;
-    while (i >= 0 && (indices_p[i].id_aluno > novoRegistro.id_aluno ||
-           (indices_p[i].id_aluno == novoRegistro.id_aluno && strcmp(indices_p[i].sigla_disc, novoRegistro.sigla_disc) > 0))) {
-        // Deslocar o registro para a direita
-        indices_p[i + 1] = indices_p[i];
-        --i;
-    }
-
-    // Inserir o novo registro na posição correta
-    indices_p[i + 1] = novoRegistro;
-
-    return;
-}
-
-void inserirOrdenadoPorNome(struct busca_s_nomes indices_s_nomes[], struct busca_s_nomes novo_nome, int numRegistros) {
-    
-    // Encontrar a posição onde o novo registro deve ser inserido
-    int i = numRegistros - 1;
-    while (i >= 0 && strcmp(indices_s_nomes[i].nome_aluno, novo_nome.nome_aluno) > 0) {
-        // Deslocar o registro para a direita
-        indices_s_nomes[i + 1] = indices_s_nomes[i];
-        --i;
-    }
-
-    // Inserir o novo registro na posição correta
-    indices_s_nomes[i + 1] = novo_nome;
-
-    return;
-}
 
 
 
@@ -835,6 +846,15 @@ int main ()
 
     fseek(file, 0, SEEK_SET);
     fread(&header, sizeof(struct cabecalho), 1, file);
+
+    for (int i = 0; i < header.quantidade_nomes; i++)
+    {
+        printf("Nome %d: %s\n", i, &indices_s_nomes[i]);
+    }
+    printf("===========================================================================\n");
+    for(int i = 0; i < header.insere_utilizados; i++){
+        printf("Chave %d: ID %s, Sigla %s\n", i, &indices_p[i].id_aluno, &indices_p[i].sigla_disc);
+    }
 
     escreveIndicesP(indices_p, header, file_bp);
     escreveNomesIndicesS(indices_s_nomes, header, file_bs_nomes);
